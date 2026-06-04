@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAdminToken } from "@/lib/admin-auth.server";
 import { z } from "zod";
 
 export const listPublicEvents = createServerFn({ method: "GET" }).handler(async () => {
@@ -16,6 +16,7 @@ export const listPublicEvents = createServerFn({ method: "GET" }).handler(async 
 });
 
 const eventInput = z.object({
+  token: z.string().min(1),
   id: z.string().uuid().optional(),
   title: z.string().min(1).max(200),
   event_date: z.string().min(1),
@@ -30,21 +31,19 @@ const eventInput = z.object({
 });
 
 export const upsertEvent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => eventInput.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-    if (!isAdmin) throw new Error("Forbidden");
+  .handler(async ({ data }) => {
+    requireAdminToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { token: _token, ...eventData } = data;
     const payload = {
-      ...data,
-      poster_url: data.poster_url || null,
-      ticket_url: data.ticket_url || null,
+      ...eventData,
+      poster_url: eventData.poster_url || null,
+      ticket_url: eventData.ticket_url || null,
       updated_at: new Date().toISOString(),
     };
-    if (data.id) {
-      const { error } = await supabaseAdmin.from("events").update(payload).eq("id", data.id);
+    if (eventData.id) {
+      const { error } = await supabaseAdmin.from("events").update(payload).eq("id", eventData.id);
       if (error) throw new Error(error.message);
     } else {
       const { id: _omit, ...insertData } = payload;
@@ -55,12 +54,11 @@ export const upsertEvent = createServerFn({ method: "POST" })
   });
 
 export const deleteEvent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-    if (!isAdmin) throw new Error("Forbidden");
+  .inputValidator((input: unknown) =>
+    z.object({ token: z.string().min(1), id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    requireAdminToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("events").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -68,11 +66,9 @@ export const deleteEvent = createServerFn({ method: "POST" })
   });
 
 export const listAllEventsAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-    if (!isAdmin) throw new Error("Forbidden");
+  .inputValidator((input: unknown) => z.object({ token: z.string().min(1) }).parse(input))
+  .handler(async ({ data }) => {
+    requireAdminToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("events")

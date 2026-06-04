@@ -15,6 +15,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "preview:rsc": "bun run --cwd OutsideAtlVite preview",
+    "lovable:status": "node scripts/lovable-status.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

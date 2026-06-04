@@ -52,6 +52,24 @@ bun run dev
 
 The dev server is usually `http://localhost:5173`.
 
+## Lovable Front-End
+
+This workbase is connected to the Lovable project:
+
+- Project ID: `eb9cfecc-d4dc-404c-8f1b-ffe641f007a6`
+- Lovable editor: https://lovable.dev/projects/eb9cfecc-d4dc-404c-8f1b-ffe641f007a6
+- Local connection metadata: `.lovable/connection.json`
+
+Check the connection from the repository root:
+
+```powershell
+bun run lovable:status
+```
+
+The production front-end entrypoints are `src/routes/__root.tsx`, `src/routes/index.tsx`, and
+`src/router.tsx`. The project uses `@lovable.dev/vite-tanstack-config` in `vite.config.ts`, so the
+local Vite/TanStack setup stays aligned with Lovable's front-end runtime.
+
 ## RSC Workspace
 
 `OutsideAtlVite/` is an integrated Bun workspace for future React Server Components experiments. It is not a throwaway starter anymore; it is branded and isolated from the production TanStack Start app.

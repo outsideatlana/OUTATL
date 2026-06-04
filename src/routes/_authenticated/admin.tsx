@@ -12,18 +12,25 @@ import { listAllEventsAdmin, upsertEvent, deleteEvent } from "@/lib/events.funct
 import {
   listSubmissionsAdmin,
   checkIsAdmin,
-  claimFirstAdmin,
   updateSubmissionStatus,
 } from "@/lib/submissions.functions";
-import { supabase } from "@/integrations/supabase/client";
 import { Input, Textarea, Select } from "@/routes/index";
 import { toast } from "sonner";
 
-const adminCheckQO = queryOptions({ queryKey: ["admin-check"], queryFn: () => checkIsAdmin() });
-const eventsQO = queryOptions({ queryKey: ["admin-events"], queryFn: () => listAllEventsAdmin() });
+const ADMIN_TOKEN_KEY = "outsideatl_admin_token";
+const getAdminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY) ?? "";
+
+const adminCheckQO = queryOptions({
+  queryKey: ["admin-check"],
+  queryFn: () => checkIsAdmin({ data: { token: getAdminToken() } }),
+});
+const eventsQO = queryOptions({
+  queryKey: ["admin-events"],
+  queryFn: () => listAllEventsAdmin({ data: { token: getAdminToken() } }),
+});
 const submissionsQO = queryOptions({
   queryKey: ["admin-submissions"],
-  queryFn: () => listSubmissionsAdmin(),
+  queryFn: () => listSubmissionsAdmin({ data: { token: getAdminToken() } }),
 });
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -35,19 +42,10 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 function AdminPage() {
   const navigate = useNavigate();
-  const { data: adminCheck, refetch } = useQuery(adminCheckQO);
-  const claimFn = useServerFn(claimFirstAdmin);
-  const claim = useMutation({
-    mutationFn: () => claimFn(),
-    onSuccess: () => {
-      toast.success("You are now the admin.");
-      refetch();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const { data: adminCheck } = useQuery(adminCheckQO);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
     navigate({ to: "/auth" });
   };
 
@@ -61,26 +59,16 @@ function AdminPage() {
     return (
       <div className="min-h-screen grid place-items-center px-6">
         <div className="max-w-md text-center space-y-6">
-          <h1 className="font-display text-4xl uppercase">Not an admin</h1>
+          <h1 className="font-display text-4xl uppercase">Session expired</h1>
           <p className="text-muted-foreground">
-            Your account isn't authorized yet. If this is the first admin account for OutsideAtl,
-            claim it now.
+            Sign in again to continue managing OutsideAtl events and submissions.
           </p>
           <button
-            onClick={() => claim.mutate()}
-            disabled={claim.isPending}
+            onClick={signOut}
             className="bg-accent text-accent-foreground font-display text-xl uppercase px-8 py-3 disabled:opacity-50"
           >
-            {claim.isPending ? "..." : "Claim admin"}
+            Sign in
           </button>
-          <div>
-            <button
-              onClick={signOut}
-              className="font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-accent"
-            >
-              [ Sign out ]
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -168,7 +156,9 @@ function EventsManager() {
 
   const save = useMutation({
     mutationFn: () =>
-      upsertFn({ data: { ...form, id: form.id || undefined } } as Parameters<typeof upsertFn>[0]),
+      upsertFn({
+        data: { ...form, token: getAdminToken(), id: form.id || undefined },
+      } as Parameters<typeof upsertFn>[0]),
     onSuccess: () => {
       toast.success(form.id ? "Event updated" : "Event added");
       setForm(blank);
@@ -178,7 +168,7 @@ function EventsManager() {
     onError: (e: Error) => toast.error(e.message),
   });
   const del = useMutation({
-    mutationFn: (id: string) => delFn({ data: { id } }),
+    mutationFn: (id: string) => delFn({ data: { id, token: getAdminToken() } }),
     onSuccess: () => {
       toast.success("Deleted");
       qc.invalidateQueries({ queryKey: ["admin-events"] });
@@ -378,6 +368,7 @@ function SubmissionsView({ tab }: { tab: "rsvps" | "applications" | "newsletter"
     mutationFn: (vars: { id: string; review_status: Status }) =>
       updateFn({
         data: {
+          token: getAdminToken(),
           table: tab as "applications" | "rsvps",
           id: vars.id,
           review_status: vars.review_status,

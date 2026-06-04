@@ -1,9 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loginAdmin, requireAdminToken } from "@/lib/admin-auth.server";
 import { z } from "zod";
 
 const email = z.string().email().max(255);
 const optStr = (max = 500) => z.string().max(max).optional().nullable().or(z.literal(""));
+
+export const adminLogin = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        username: z.string().min(1).max(120),
+        password: z.string().min(1).max(300),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data }) => {
+    return { ok: true, token: loginAdmin(data.username, data.password) };
+  });
 
 export const submitRsvp = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) =>
@@ -103,10 +116,10 @@ export const submitApplication = createServerFn({ method: "POST" })
 const REVIEW_STATUSES = ["new", "reviewed", "accepted", "waitlist", "rejected"] as const;
 
 export const updateSubmissionStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
     z
       .object({
+        token: z.string().min(1),
         table: z.enum(["applications", "rsvps"]),
         id: z.string().uuid(),
         review_status: z.enum(REVIEW_STATUSES),
@@ -114,10 +127,8 @@ export const updateSubmissionStatus = createServerFn({ method: "POST" })
       })
       .parse(i),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-    if (!isAdmin) throw new Error("Forbidden");
+  .handler(async ({ data }) => {
+    requireAdminToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch = {
       review_status: data.review_status,
@@ -133,11 +144,9 @@ export const updateSubmissionStatus = createServerFn({ method: "POST" })
   });
 
 export const listSubmissionsAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-    if (!isAdmin) throw new Error("Forbidden");
+  .inputValidator((i: unknown) => z.object({ token: z.string().min(1) }).parse(i))
+  .handler(async ({ data }) => {
+    requireAdminToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [rsvps, newsletter, applications, contacts] = await Promise.all([
       supabaseAdmin.from("rsvps").select("*").order("created_at", { ascending: false }).limit(500),
@@ -166,26 +175,12 @@ export const listSubmissionsAdmin = createServerFn({ method: "GET" })
   });
 
 export const checkIsAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-    return { isAdmin: !!data, userId };
-  });
-
-export const claimFirstAdmin = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { count } = await supabaseAdmin
-      .from("user_roles")
-      .select("*", { count: "exact", head: true })
-      .eq("role", "admin");
-    if ((count ?? 0) > 0) throw new Error("Admin already exists");
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .insert({ user_id: userId, role: "admin" });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+  .inputValidator((i: unknown) => z.object({ token: z.string().optional().nullable() }).parse(i))
+  .handler(async ({ data }) => {
+    try {
+      requireAdminToken(data.token);
+      return { isAdmin: true, userId: "admin" };
+    } catch {
+      return { isAdmin: false, userId: null };
+    }
   });

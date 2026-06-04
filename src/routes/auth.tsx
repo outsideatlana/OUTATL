@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { adminLogin } from "@/lib/submissions.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -12,8 +13,8 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [email, setEmail] = useState("");
+  const login = useServerFn(adminLogin);
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,20 +22,10 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin + "/admin" },
-        });
-        if (error) throw error;
-        toast.success("Account created. Check your email to confirm, then sign in.");
-        setMode("signin");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate({ to: "/admin" });
-      }
+      // Admin credentials are verified server-side; only the signed session token is kept client-side.
+      const result = await login({ data: { username, password } });
+      localStorage.setItem("outsideatl_admin_token", result.token);
+      navigate({ to: "/admin" });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -64,17 +55,18 @@ function AuthPage() {
         </p>
         <form onSubmit={onSubmit} className="space-y-3">
           <input
-            type="email"
+            type="text"
             required
-            placeholder="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="username"
+            placeholder="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             className="w-full bg-secondary/80 backdrop-blur border border-border px-4 py-3 font-mono text-sm focus:border-accent outline-none"
           />
           <input
             type="password"
             required
-            minLength={6}
+            autoComplete="current-password"
             placeholder="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -84,15 +76,9 @@ function AuthPage() {
             disabled={loading}
             className="w-full bg-accent text-accent-foreground font-display text-xl uppercase py-4 disabled:opacity-50 shadow-[0_0_40px_hsl(220_90%_40%/0.4)]"
           >
-            {loading ? "..." : mode === "signin" ? "Sign in" : "Create account"}
+            {loading ? "..." : "Sign in"}
           </button>
         </form>
-        <button
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="mt-6 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-accent"
-        >
-          [ {mode === "signin" ? "Need an account? Sign up" : "Have an account? Sign in"} ]
-        </button>
       </div>
     </div>
   );
