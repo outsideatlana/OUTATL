@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { useMutation } from "@tanstack/react-query";
-import { subscribeNewsletter } from "@/lib/submissions.functions";
+import { subscribeNewsletter } from "@/lib/api";
+import { useAsyncMutation } from "@/lib/useAsyncMutation";
 import { toast } from "sonner";
 
 const STORAGE_KEY = "outsideatl_mailing_popup_dismissed";
@@ -11,23 +10,32 @@ const SCROLL_TARGET_ID = "events"; // Upcoming Drops section
 export function MailingListPopup() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const fn = useServerFn(subscribeNewsletter);
-  const m = useMutation({
-    mutationFn: (e: string) => fn({ data: { email: e } }),
-    onSuccess: () => {
-      toast.success("You're on the list.");
-      dismiss();
+  const m = useAsyncMutation<string>(
+    (e) => subscribeNewsletter({ email: e, signup_source: "mailing_list_popup" }),
+    {
+      onSuccess: () => {
+        toast.success("You're on the list.");
+        dismiss();
+      },
+      onError: (e: Error) => toast.error(e.message),
     },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  );
 
   const dismiss = () => {
     setOpen(false);
-    try { sessionStorage.setItem(STORAGE_KEY, "1"); } catch {}
+    try {
+      sessionStorage.setItem(STORAGE_KEY, "1");
+    } catch {
+      // Storage can be unavailable in private browsing; dismissal should still work for this view.
+    }
   };
 
   useEffect(() => {
-    try { if (sessionStorage.getItem(STORAGE_KEY)) return; } catch {}
+    try {
+      if (sessionStorage.getItem(STORAGE_KEY)) return;
+    } catch {
+      // If sessionStorage is blocked, fall through and allow the popup trigger.
+    }
 
     let triggered = false;
     const trigger = () => {
@@ -57,7 +65,9 @@ export function MailingListPopup() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") dismiss();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
@@ -90,9 +100,16 @@ export function MailingListPopup() {
         >
           ✕
         </button>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-accent mb-3">[ Don't miss the next drop ]</p>
-        <h2 id="mailing-popup-title" className="font-display text-4xl uppercase tracking-tighter leading-none mb-4">
-          Join the<br />Mailing List
+        <p className="font-mono text-[10px] uppercase tracking-widest text-accent mb-3">
+          [ Don't miss the next drop ]
+        </p>
+        <h2
+          id="mailing-popup-title"
+          className="font-display text-4xl uppercase tracking-tighter leading-none mb-4"
+        >
+          Join the
+          <br />
+          Mailing List
         </h2>
         <p className="text-sm text-muted-foreground mb-6">
           Early-access drops, secret locations, and community-only invites — straight to your inbox.

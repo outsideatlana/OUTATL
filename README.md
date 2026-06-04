@@ -1,6 +1,6 @@
 # OutsideAtl Website
 
-OutsideAtl is a TanStack Start / React landing page backed by Supabase for auth, events, RSVPs, signups, contact messages, and applications.
+OutsideAtl is a Vite + React landing page with a small Express API backed by Supabase for events, RSVPs, signups, contact messages, applications, and admin tools.
 
 ## Windows Setup
 
@@ -41,8 +41,12 @@ Set these values:
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `ADMIN_AUTH_SECRET`
 
 Do not put the service role key in frontend JavaScript. It is only used by server functions.
+Do not prefix admin credentials with `VITE_`; they must remain server-only.
 
 5. Run the app:
 
@@ -51,18 +55,6 @@ bun run dev
 ```
 
 The dev server is usually `http://localhost:5173`.
-
-## RSC Workspace
-
-`OutsideAtlVite/` is an integrated Bun workspace for future React Server Components experiments. It is not a throwaway starter anymore; it is branded and isolated from the production TanStack Start app.
-
-Run it from the repository root:
-
-```powershell
-bun run dev:rsc
-bun run build:rsc
-bun run preview:rsc
-```
 
 ## Supabase
 
@@ -73,10 +65,11 @@ The app expects these tables/functions from `supabase/migrations`:
 - `newsletter_subscribers`
 - `applications`
 - `contact_messages`
-- `user_roles`
-- `has_role(_user_id, _role)`
+- `deal_private_event_signups`
 
-Admin access uses Supabase Auth. Sign up at `/auth`, then use the admin page to claim the first admin account. Later admin users should be added through the `user_roles` table.
+Public event reads use the Supabase publishable key and degrade to an empty event list if Supabase is unavailable during local development, so the homepage can still boot.
+
+Admin access uses a private username and password from `.env` or `.env.local`. The `/auth` page does not expose signup. Admin tokens are signed server-side with `ADMIN_AUTH_SECRET`; event CRUD and submission review routes validate that token before using server-only Supabase access.
 
 ## Features
 
@@ -93,4 +86,5 @@ Admin access uses Supabase Auth. Sign up at `/auth`, then use the admin page to 
 - `.env` is ignored and should not be committed.
 - `SUPABASE_SERVICE_ROLE_KEY` must stay server-side only.
 - This project uses Bun. Prefer `bun install`, `bun run dev`, `bun run build`, and `bun run lint`.
-- Before deployment, run `bun run build` for the main app and `bun run build:rsc` if you are shipping the RSC workspace.
+- `bun run dev` starts the Express API and Vite middleware together at `http://localhost:5173`.
+- `bun run build` creates the static React build in `dist`; `bun start` serves that build through Express.
