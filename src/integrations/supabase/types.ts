@@ -182,6 +182,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      member_profiles: {
+        Row: {
+          created_at: string;
+          email: string;
+          full_name: string | null;
+          joined_mail_list: boolean;
+          phone: string | null;
+          updated_at: string;
+          user_id: string;
+          wants_discounts: boolean;
+          wants_first_notices: boolean;
+          wants_private_events: boolean;
+        };
+        Insert: {
+          created_at?: string;
+          email: string;
+          full_name?: string | null;
+          joined_mail_list?: boolean;
+          phone?: string | null;
+          updated_at?: string;
+          user_id: string;
+          wants_discounts?: boolean;
+          wants_first_notices?: boolean;
+          wants_private_events?: boolean;
+        };
+        Update: {
+          created_at?: string;
+          email?: string;
+          full_name?: string | null;
+          joined_mail_list?: boolean;
+          phone?: string | null;
+          updated_at?: string;
+          user_id?: string;
+          wants_discounts?: boolean;
+          wants_first_notices?: boolean;
+          wants_private_events?: boolean;
+        };
+        Relationships: [];
+      };
       newsletter_subscribers: {
         Row: {
           created_at: string;

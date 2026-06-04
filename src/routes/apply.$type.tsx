@@ -141,7 +141,7 @@ function ApplyPage() {
           </p>
           <h1
             className="font-display text-5xl md:text-7xl uppercase tracking-tighter mb-6"
-            style={{ textShadow: "0 0 60px hsl(220 90% 40% / 0.4)" }}
+            style={{ textShadow: "0 0 60px hsl(0 72% 50% / 0.4)" }}
           >
             {meta.title}
           </h1>
@@ -249,7 +249,7 @@ function ApplyPage() {
           </Field>
           <button
             disabled={m.isPending}
-            className="w-full md:w-auto bg-accent text-accent-foreground font-display text-xl uppercase px-12 py-4 hover:scale-[1.01] transition-transform disabled:opacity-50 shadow-[0_0_40px_hsl(220_90%_40%/0.4)]"
+            className="w-full md:w-auto bg-accent text-accent-foreground font-display text-xl uppercase px-12 py-4 hover:scale-[1.01] transition-transform disabled:opacity-50 shadow-[0_0_40px_hsl(0_72%_50%/0.4)]"
           >
             {m.isPending ? "Submitting..." : "Submit Application"}
           </button>

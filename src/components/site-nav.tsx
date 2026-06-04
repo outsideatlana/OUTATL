@@ -24,6 +24,9 @@ export function SiteNav() {
         <Link to="/" hash="contact" className="hover:text-accent transition-colors">
           Contact
         </Link>
+        <Link to="/member" className="hover:text-accent transition-colors">
+          Member Access
+        </Link>
         <Link
           to="/"
           hash="rsvp"
@@ -33,11 +36,10 @@ export function SiteNav() {
         </Link>
       </div>
       <Link
-        to="/"
-        hash="rsvp"
+        to="/member"
         className="md:hidden px-3 py-2 bg-accent text-accent-foreground font-mono text-[10px] font-bold uppercase"
       >
-        RSVP
+        Member
       </Link>
     </nav>
   );

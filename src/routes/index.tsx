@@ -83,7 +83,7 @@ function Hero() {
         </p>
         <h1
           className="font-display text-[clamp(3.5rem,13vw,11rem)] leading-[0.85] uppercase tracking-tighter text-balance"
-          style={{ textShadow: "0 0 80px hsl(220 90% 40% / 0.4)" }}
+          style={{ textShadow: "0 0 80px hsl(0 72% 50% / 0.4)" }}
         >
           The Sound of <span className="text-accent">Atlanta's</span>
           <br />
@@ -96,7 +96,7 @@ function Hero() {
         <div className="mt-10 flex flex-wrap gap-3">
           <a
             href="#events"
-            className="bg-accent text-accent-foreground px-8 py-4 font-display text-xl uppercase tracking-tight hover:scale-105 transition-transform shadow-[0_0_40px_hsl(220_90%_40%/0.5)]"
+            className="bg-accent text-accent-foreground px-8 py-4 font-display text-xl uppercase tracking-tight hover:scale-105 transition-transform shadow-[0_0_40px_hsl(0_72%_50%/0.5)]"
           >
             Upcoming Shows
           </a>
@@ -106,6 +106,12 @@ function Hero() {
             className="border border-foreground/30 px-8 py-4 font-display text-xl uppercase tracking-tight backdrop-blur-md hover:bg-foreground hover:text-background transition-all"
           >
             Artist Submission
+          </Link>
+          <Link
+            to="/member"
+            className="border border-accent/70 px-8 py-4 font-display text-xl uppercase tracking-tight text-accent backdrop-blur-md hover:bg-accent hover:text-accent-foreground transition-all"
+          >
+            Member Access
           </Link>
         </div>
       </div>
@@ -121,7 +127,7 @@ function Ticker({ events }: { events: Array<{ id: string; title: string; event_d
           .map((e) => `${formatDate(e.event_date).short} — ${e.title.toUpperCase()}`)
       : [
           "NEW EVENTS DROPPING SOON",
-          "FOLLOW @OUTSIDEATL FOR UPDATES",
+          "FOLLOW @OUTSID3.ATL FOR UPDATES",
           "BOOKINGS OPEN",
           "VENDOR APPS OPEN",
         ];
@@ -626,6 +632,12 @@ function NewsletterSection() {
         <p className="text-muted-foreground mb-10">
           Inner-circle drops, secret locations, and community invites — straight to your inbox.
         </p>
+        <Link
+          to="/member"
+          className="mb-6 inline-block bg-foreground text-background font-display text-xl uppercase px-8 py-4 hover:bg-accent hover:text-accent-foreground transition-colors"
+        >
+          Create Member Access
+        </Link>
         <form
           onSubmit={(e) => {
             e.preventDefault();

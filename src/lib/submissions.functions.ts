@@ -60,13 +60,22 @@ export const subscribeNewsletter = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Public deal/private-event signup: handled server-side so no Supabase secret reaches the browser.
-    const { error } = await supabaseAdmin.from("deal_private_event_signups").insert({
-      email: data.email.trim().toLowerCase(),
-      signup_source: data.signup_source,
-      consent_marketing: data.consent_marketing,
-    });
-    if (error && !error.message.toLowerCase().includes("duplicate")) throw new Error(error.message);
+    const normalizedEmail = data.email.trim().toLowerCase();
+    const [dealSignup, newsletter] = await Promise.all([
+      supabaseAdmin.from("deal_private_event_signups").upsert(
+        {
+          email: normalizedEmail,
+          signup_source: data.signup_source,
+          consent_marketing: data.consent_marketing,
+        },
+        { onConflict: "email" },
+      ),
+      supabaseAdmin
+        .from("newsletter_subscribers")
+        .upsert({ email: normalizedEmail }, { onConflict: "email" }),
+    ]);
+    const error = dealSignup.error ?? newsletter.error;
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
