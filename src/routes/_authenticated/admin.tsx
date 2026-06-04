@@ -98,13 +98,14 @@ function AdminPage() {
 }
 
 function Tabs() {
-  const [tab, setTab] = useState<"events" | "rsvps" | "applications" | "newsletter" | "contacts">(
-    "events",
-  );
+  const [tab, setTab] = useState<
+    "events" | "rsvps" | "applications" | "dealSignups" | "newsletter" | "contacts"
+  >("events");
   const tabs = [
     { id: "events" as const, label: "Events" },
     { id: "rsvps" as const, label: "RSVPs" },
     { id: "applications" as const, label: "Applications" },
+    { id: "dealSignups" as const, label: "Deals List" },
     { id: "newsletter" as const, label: "Newsletter" },
     { id: "contacts" as const, label: "Contact" },
   ];
@@ -351,7 +352,11 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
-function SubmissionsView({ tab }: { tab: "rsvps" | "applications" | "newsletter" | "contacts" }) {
+function SubmissionsView({
+  tab,
+}: {
+  tab: "rsvps" | "applications" | "dealSignups" | "newsletter" | "contacts";
+}) {
   const { data } = useSuspenseQuery(submissionsQO);
   const qc = useQueryClient();
   const updateFn = useServerFn(updateSubmissionStatus);

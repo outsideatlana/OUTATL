@@ -49,12 +49,23 @@ export const submitRsvp = createServerFn({ method: "POST" })
   });
 
 export const subscribeNewsletter = createServerFn({ method: "POST" })
-  .inputValidator((i: unknown) => z.object({ email }).parse(i))
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        email,
+        signup_source: z.string().max(80).optional().default("homepage"),
+        consent_marketing: z.boolean().optional().default(true),
+      })
+      .parse(i),
+  )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("newsletter_subscribers")
-      .insert({ email: data.email.toLowerCase() });
+    // Public deal/private-event signup: handled server-side so no Supabase secret reaches the browser.
+    const { error } = await supabaseAdmin.from("deal_private_event_signups").insert({
+      email: data.email.trim().toLowerCase(),
+      signup_source: data.signup_source,
+      consent_marketing: data.consent_marketing,
+    });
     if (error && !error.message.toLowerCase().includes("duplicate")) throw new Error(error.message);
     return { ok: true };
   });
@@ -148,8 +159,13 @@ export const listSubmissionsAdmin = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     requireAdminToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [rsvps, newsletter, applications, contacts] = await Promise.all([
+    const [rsvps, dealSignups, newsletter, applications, contacts] = await Promise.all([
       supabaseAdmin.from("rsvps").select("*").order("created_at", { ascending: false }).limit(500),
+      supabaseAdmin
+        .from("deal_private_event_signups")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500),
       supabaseAdmin
         .from("newsletter_subscribers")
         .select("*")
@@ -168,6 +184,7 @@ export const listSubmissionsAdmin = createServerFn({ method: "GET" })
     ]);
     return {
       rsvps: rsvps.data ?? [],
+      dealSignups: dealSignups.data ?? [],
       newsletter: newsletter.data ?? [],
       applications: applications.data ?? [],
       contacts: contacts.data ?? [],

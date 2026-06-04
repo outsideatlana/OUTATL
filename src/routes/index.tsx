@@ -605,9 +605,10 @@ function ContactSection() {
 function NewsletterSection() {
   const fn = useServerFn(subscribeNewsletter);
   const m = useMutation({
-    mutationFn: (input: { email: string }) => fn({ data: input }),
+    mutationFn: (input: { email: string }) =>
+      fn({ data: { ...input, signup_source: "homepage_deals_private_events" } }),
     onSuccess: () => {
-      toast.success("Subscribed.");
+      toast.success("You're on the deals and private-events list.");
       setEmail("");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -617,10 +618,10 @@ function NewsletterSection() {
     <section className="px-6 py-24 flex flex-col items-center text-center">
       <div className="max-w-2xl">
         <p className="font-mono text-xs uppercase tracking-widest text-accent mb-3">
-          [ Newsletter ]
+          [ Deals / Private Events ]
         </p>
         <h2 className="font-display text-5xl uppercase tracking-tight mb-6">
-          Don't Miss the Next Wave
+          Get the Private Drops
         </h2>
         <p className="text-muted-foreground mb-10">
           Inner-circle drops, secret locations, and community invites — straight to your inbox.
@@ -644,7 +645,7 @@ function NewsletterSection() {
             disabled={m.isPending}
             className="bg-accent text-accent-foreground font-display text-xl uppercase px-8 py-4 hover:scale-105 transition-transform disabled:opacity-50"
           >
-            {m.isPending ? "..." : "Subscribe"}
+            {m.isPending ? "..." : "Join"}
           </button>
         </form>
       </div>

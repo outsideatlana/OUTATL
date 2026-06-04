@@ -24,10 +24,13 @@ function AuthPage() {
     try {
       // Admin credentials are verified server-side; only the signed session token is kept client-side.
       const result = await login({ data: { username, password } });
-      localStorage.setItem("outsideatl_admin_token", result.token);
-      navigate({ to: "/admin" });
+      const token = getAdminLoginToken(result);
+      if (!token) throw new Error("Admin login did not return a session.");
+      localStorage.setItem("outsideatl_admin_token", token);
+      await navigate({ to: "/admin" });
     } catch (err) {
-      toast.error((err as Error).message);
+      const message = err instanceof Error ? err.message : "Unable to sign in.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -82,4 +85,15 @@ function AuthPage() {
       </div>
     </div>
   );
+}
+
+function getAdminLoginToken(result: unknown) {
+  if (typeof result === "string") return result;
+  if (!result || typeof result !== "object") return null;
+  const direct = result as { token?: unknown };
+  if (typeof direct.token === "string") return direct.token;
+  const nested = result as { data?: { token?: unknown }; result?: { token?: unknown } };
+  if (typeof nested.data?.token === "string") return nested.data.token;
+  if (typeof nested.result?.token === "string") return nested.result.token;
+  return null;
 }

@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 const TOKEN_TTL_SECONDS = 60 * 60 * 8;
 
@@ -8,14 +10,17 @@ type AdminTokenPayload = {
 };
 
 export function loginAdmin(username: string, password: string) {
-  const expectedUsername = process.env.ADMIN_USERNAME;
-  const expectedPassword = process.env.ADMIN_PASSWORD;
+  const expectedUsername = getAdminEnv("ADMIN_USERNAME");
+  const expectedPassword = getAdminEnv("ADMIN_PASSWORD");
 
   if (!expectedUsername || !expectedPassword) {
     throw new Error("Admin login is not configured.");
   }
 
-  if (!safeEqual(username, expectedUsername) || !safeEqual(password, expectedPassword)) {
+  if (
+    !safeEqual(username.trim(), expectedUsername.trim()) ||
+    !safeEqual(password, expectedPassword)
+  ) {
     throw new Error("Invalid username or password.");
   }
 
@@ -51,9 +56,30 @@ function verifyToken(token: string) {
 }
 
 function getSecret() {
-  const secret = process.env.ADMIN_AUTH_SECRET;
+  const secret = getAdminEnv("ADMIN_AUTH_SECRET");
   if (!secret || secret.length < 32) throw new Error("ADMIN_AUTH_SECRET must be configured.");
   return secret;
+}
+
+function getAdminEnv(name: "ADMIN_USERNAME" | "ADMIN_PASSWORD" | "ADMIN_AUTH_SECRET") {
+  return readLocalAdminEnv()[name] ?? process.env[name];
+}
+
+function readLocalAdminEnv() {
+  const envPath = path.join(process.cwd(), ".env.local");
+  try {
+    const entries = fs
+      .readFileSync(envPath, "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.match(/^\s*([^#][^=]+)=(.*)$/))
+      .filter((match): match is RegExpMatchArray => Boolean(match))
+      .map((match) => [match[1].trim(), match[2]] as const);
+    return Object.fromEntries(entries) as Partial<
+      Record<"ADMIN_USERNAME" | "ADMIN_PASSWORD" | "ADMIN_AUTH_SECRET", string>
+    >;
+  } catch {
+    return {};
+  }
 }
 
 function safeEqual(a: string, b: string) {

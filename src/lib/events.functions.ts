@@ -70,10 +70,10 @@ export const listAllEventsAdmin = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     requireAdminToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
+    const { data: events, error } = await supabaseAdmin
       .from("events")
       .select("*")
       .order("event_date", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return events ?? [];
   });

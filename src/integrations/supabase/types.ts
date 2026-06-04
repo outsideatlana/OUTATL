@@ -158,6 +158,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      deal_private_event_signups: {
+        Row: {
+          consent_marketing: boolean;
+          created_at: string;
+          email: string;
+          id: string;
+          signup_source: string;
+        };
+        Insert: {
+          consent_marketing?: boolean;
+          created_at?: string;
+          email: string;
+          id?: string;
+          signup_source?: string;
+        };
+        Update: {
+          consent_marketing?: boolean;
+          created_at?: string;
+          email?: string;
+          id?: string;
+          signup_source?: string;
+        };
+        Relationships: [];
+      };
       newsletter_subscribers: {
         Row: {
           created_at: string;
