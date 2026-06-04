@@ -79,7 +79,11 @@ function MemberPage() {
 function MemberPitch() {
   const perks = [
     { icon: Ticket, title: "Discounts", body: "Member codes and early ticket breaks." },
-    { icon: Sparkles, title: "Private Events", body: "Hidden drops, invite-only rooms, soft launches." },
+    {
+      icon: Sparkles,
+      title: "Private Events",
+      body: "Hidden drops, invite-only rooms, soft launches.",
+    },
     { icon: Mail, title: "First Notices", body: "Lineups, locations, and drops before the feed." },
   ];
   return (
@@ -230,7 +234,11 @@ function MemberAuth({ onSignedIn }: { onSignedIn: () => void }) {
           disabled={auth.isPending}
           className="flex w-full items-center justify-center gap-2 bg-accent px-8 py-4 font-display text-xl uppercase text-accent-foreground disabled:opacity-50"
         >
-          {auth.isPending ? <Loader2 className="size-5 animate-spin" /> : <UserRound className="size-5" />}
+          {auth.isPending ? (
+            <Loader2 className="size-5 animate-spin" />
+          ) : (
+            <UserRound className="size-5" />
+          )}
           {mode === "signup" ? "Create Access" : "Enter"}
         </button>
       </form>
@@ -316,7 +324,11 @@ function MemberDashboard({ onSignedOut }: { onSignedOut: () => void }) {
           disabled={save.isPending}
           className="flex w-full items-center justify-center gap-2 bg-accent px-8 py-4 font-display text-xl uppercase text-accent-foreground disabled:opacity-50"
         >
-          {save.isPending ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
+          {save.isPending ? (
+            <Loader2 className="size-5 animate-spin" />
+          ) : (
+            <Save className="size-5" />
+          )}
           Save Preferences
         </button>
       </form>
@@ -326,12 +338,13 @@ function MemberDashboard({ onSignedOut }: { onSignedOut: () => void }) {
 
 function MemberPerks({ profile }: { profile: MemberProfile }) {
   const unlocked = useMemo(
-    () => [
-      profile.wants_discounts && "Discount drops enabled",
-      profile.wants_private_events && "Private invites enabled",
-      profile.wants_first_notices && "First notices enabled",
-      profile.joined_mail_list && "Mail-list active",
-    ].filter(Boolean),
+    () =>
+      [
+        profile.wants_discounts && "Discount drops enabled",
+        profile.wants_private_events && "Private invites enabled",
+        profile.wants_first_notices && "First notices enabled",
+        profile.joined_mail_list && "Mail-list active",
+      ].filter(Boolean),
     [profile],
   );
   return (

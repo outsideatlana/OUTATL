@@ -94,10 +94,7 @@ function buildApplicationFields(app: ApplicationRecord): Record<string, unknown>
     ]) {
       const v = app.extra[key];
       if (v != null && v !== "") {
-        const label = key
-          .split("_")
-          .map((p) => p[0].toUpperCase() + p.slice(1))
-          .join(" ");
+        const label = key.split("_").map((p) => p[0].toUpperCase() + p.slice(1)).join(" ");
         fields[label] = v;
       }
     }

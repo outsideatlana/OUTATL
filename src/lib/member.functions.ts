@@ -93,9 +93,7 @@ async function syncMemberEmail(email: string) {
   if (!email) return;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   await Promise.all([
-    supabaseAdmin
-      .from("newsletter_subscribers")
-      .upsert({ email }, { onConflict: "email" }),
+    supabaseAdmin.from("newsletter_subscribers").upsert({ email }, { onConflict: "email" }),
     supabaseAdmin.from("deal_private_event_signups").upsert(
       {
         email,

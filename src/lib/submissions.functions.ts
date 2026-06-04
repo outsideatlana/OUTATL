@@ -1,38 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
-import { loginAdmin, requireAdminToken } from "@/lib/admin-auth.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 const email = z.string().email().max(255);
 const optStr = (max = 500) => z.string().max(max).optional().nullable().or(z.literal(""));
 
-export const adminLogin = createServerFn({ method: "POST" })
-  .inputValidator((i: unknown) =>
-    z
-      .object({
-        username: z.string().min(1).max(120),
-        password: z.string().min(1).max(300),
-      })
-      .parse(i),
-  )
-  .handler(async ({ data }) => {
-    return { ok: true, token: loginAdmin(data.username, data.password) };
-  });
-
 export const submitRsvp = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) =>
-    z
-      .object({
-        event_id: z.string().uuid().optional().nullable(),
-        full_name: z.string().min(1).max(120),
-        email,
-        phone: optStr(40),
-        age_range: optStr(20),
-        social_handle: optStr(80),
-        college_affiliation: optStr(120),
-        preferred_event_types: optStr(200),
-        notes: optStr(1000),
-      })
-      .parse(i),
+    z.object({
+      event_id: z.string().uuid().optional().nullable(),
+      full_name: z.string().min(1).max(120),
+      email,
+      phone: optStr(40),
+      age_range: optStr(20),
+      social_handle: optStr(80),
+      college_affiliation: optStr(120),
+      preferred_event_types: optStr(200),
+      notes: optStr(1000),
+    }).parse(i),
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -49,46 +34,24 @@ export const submitRsvp = createServerFn({ method: "POST" })
   });
 
 export const subscribeNewsletter = createServerFn({ method: "POST" })
-  .inputValidator((i: unknown) =>
-    z
-      .object({
-        email,
-        signup_source: z.string().max(80).optional().default("homepage"),
-        consent_marketing: z.boolean().optional().default(true),
-      })
-      .parse(i),
-  )
+  .inputValidator((i: unknown) => z.object({ email }).parse(i))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const normalizedEmail = data.email.trim().toLowerCase();
-    const [dealSignup, newsletter] = await Promise.all([
-      supabaseAdmin.from("deal_private_event_signups").upsert(
-        {
-          email: normalizedEmail,
-          signup_source: data.signup_source,
-          consent_marketing: data.consent_marketing,
-        },
-        { onConflict: "email" },
-      ),
-      supabaseAdmin
-        .from("newsletter_subscribers")
-        .upsert({ email: normalizedEmail }, { onConflict: "email" }),
-    ]);
-    const error = dealSignup.error ?? newsletter.error;
-    if (error) throw new Error(error.message);
+    const { error } = await supabaseAdmin
+      .from("newsletter_subscribers")
+      .insert({ email: data.email.toLowerCase() });
+    if (error && !error.message.includes("duplicate")) throw new Error(error.message);
     return { ok: true };
   });
 
 export const submitContact = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) =>
-    z
-      .object({
-        name: z.string().min(1).max(120),
-        email,
-        subject: optStr(160),
-        message: z.string().min(1).max(2000),
-      })
-      .parse(i),
+    z.object({
+      name: z.string().min(1).max(120),
+      email,
+      subject: optStr(160),
+      message: z.string().min(1).max(2000),
+    }).parse(i),
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -124,6 +87,7 @@ export const submitApplication = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("applications").insert(data);
     if (error) throw new Error(error.message);
+    // Fire-and-forget Airtable sync (won't block or fail user submission)
     try {
       const { syncApplicationToAirtable } = await import("./airtable.server");
       await syncApplicationToAirtable(data);
@@ -136,64 +100,44 @@ export const submitApplication = createServerFn({ method: "POST" })
 const REVIEW_STATUSES = ["new", "reviewed", "accepted", "waitlist", "rejected"] as const;
 
 export const updateSubmissionStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
-    z
-      .object({
-        token: z.string().min(1),
-        table: z.enum(["applications", "rsvps"]),
-        id: z.string().uuid(),
-        review_status: z.enum(REVIEW_STATUSES),
-        admin_notes: z.string().max(2000).optional().nullable(),
-      })
-      .parse(i),
+    z.object({
+      table: z.enum(["applications", "rsvps"]),
+      id: z.string().uuid(),
+      review_status: z.enum(REVIEW_STATUSES),
+      admin_notes: z.string().max(2000).optional().nullable(),
+    }).parse(i),
   )
-  .handler(async ({ data }) => {
-    requireAdminToken(data.token);
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Forbidden");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch = {
-      review_status: data.review_status,
-      ...(data.admin_notes !== undefined ? { admin_notes: data.admin_notes } : {}),
-    };
-    const q =
-      data.table === "applications"
-        ? supabaseAdmin.from("applications").update(patch).eq("id", data.id)
-        : supabaseAdmin.from("rsvps").update(patch).eq("id", data.id);
+    const patch = { review_status: data.review_status, ...(data.admin_notes !== undefined ? { admin_notes: data.admin_notes } : {}) };
+    const q = data.table === "applications"
+      ? supabaseAdmin.from("applications").update(patch).eq("id", data.id)
+      : supabaseAdmin.from("rsvps").update(patch).eq("id", data.id);
     const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 export const listSubmissionsAdmin = createServerFn({ method: "GET" })
-  .inputValidator((i: unknown) => z.object({ token: z.string().min(1) }).parse(i))
-  .handler(async ({ data }) => {
-    requireAdminToken(data.token);
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Forbidden");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [rsvps, dealSignups, newsletter, applications, contacts] = await Promise.all([
+    const [rsvps, newsletter, applications, contacts] = await Promise.all([
       supabaseAdmin.from("rsvps").select("*").order("created_at", { ascending: false }).limit(500),
-      supabaseAdmin
-        .from("deal_private_event_signups")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500),
-      supabaseAdmin
-        .from("newsletter_subscribers")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500),
-      supabaseAdmin
-        .from("applications")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500),
-      supabaseAdmin
-        .from("contact_messages")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500),
+      supabaseAdmin.from("newsletter_subscribers").select("*").order("created_at", { ascending: false }).limit(500),
+      supabaseAdmin.from("applications").select("*").order("created_at", { ascending: false }).limit(500),
+      supabaseAdmin.from("contact_messages").select("*").order("created_at", { ascending: false }).limit(500),
     ]);
     return {
       rsvps: rsvps.data ?? [],
-      dealSignups: dealSignups.data ?? [],
       newsletter: newsletter.data ?? [],
       applications: applications.data ?? [],
       contacts: contacts.data ?? [],
@@ -201,12 +145,24 @@ export const listSubmissionsAdmin = createServerFn({ method: "GET" })
   });
 
 export const checkIsAdmin = createServerFn({ method: "GET" })
-  .inputValidator((i: unknown) => z.object({ token: z.string().optional().nullable() }).parse(i))
-  .handler(async ({ data }) => {
-    try {
-      requireAdminToken(data.token);
-      return { isAdmin: true, userId: "admin" };
-    } catch {
-      return { isAdmin: false, userId: null };
-    }
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    return { isAdmin: !!data, userId };
+  });
+
+export const claimFirstAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count } = await supabaseAdmin
+      .from("user_roles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "admin");
+    if ((count ?? 0) > 0) throw new Error("Admin already exists");
+    const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: userId, role: "admin" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

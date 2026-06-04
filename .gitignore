@@ -8,9 +8,6 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-.env
-data/
-.npm-cache/
 dist
 dist-ssr
 .output
@@ -18,7 +15,6 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
-.playwright-mcp/
 
 # Wrangler / Cloudflare
 .wrangler/

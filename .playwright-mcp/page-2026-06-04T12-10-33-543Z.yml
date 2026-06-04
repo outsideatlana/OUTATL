@@ -1,0 +1,46 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e11]:
+    - banner [ref=e12]:
+      - generic [ref=e13]:
+        - link "OutsideAtl" [ref=e14] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e15]: "[ Admin ]"
+      - button "[ Sign out ]" [ref=e16]
+    - generic [ref=e17]:
+      - navigation [ref=e18]:
+        - button "Events" [ref=e19]
+        - button "RSVPs" [ref=e20]
+        - button "Applications" [ref=e21]
+        - button "Newsletter" [ref=e22]
+        - button "Contact" [ref=e23]
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - heading "New event" [level=3] [ref=e27]
+          - textbox "Title *" [ref=e28]
+          - textbox [ref=e29]
+          - textbox "Venue *" [ref=e30]
+          - generic [ref=e31]:
+            - combobox [ref=e32]:
+              - option "18+"
+              - option "21+" [selected]
+              - option "All ages"
+            - combobox [ref=e33]:
+              - option "On sale" [selected]
+              - option "Selling fast"
+              - option "Sold out"
+              - option "Free"
+          - textbox "Poster image URL" [ref=e34]
+          - textbox "Ticket / RSVP URL" [ref=e35]
+          - textbox "Description" [ref=e36]
+          - generic [ref=e37]:
+            - generic [ref=e38]:
+              - checkbox "Past event" [ref=e39]
+              - text: Past event
+            - generic [ref=e40]:
+              - checkbox "Published" [checked] [ref=e41]
+              - text: Published
+          - button "Create" [ref=e43]
+        - generic [ref=e44]:
+          - heading "All events (0)" [level=3] [ref=e45]
+          - paragraph [ref=e46]: No events yet. Add one →
+  - region "Notifications alt+T"
