@@ -21,7 +21,7 @@ export function loginAdmin(username: string, password: string) {
     !safeEqual(username.trim(), expectedUsername.trim()) ||
     !safeEqual(password, expectedPassword)
   ) {
-    throw new Error("Invalid username or password.");
+    throw new Error("Access Revoked.");
   }
 
   return signToken({
