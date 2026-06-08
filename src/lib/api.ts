@@ -16,11 +16,16 @@ export type PublicEvent = {
 
 type RequestOptions = RequestInit & { admin?: boolean };
 
+function localAdminToken() {
+  if (typeof globalThis.localStorage === "undefined") return null;
+  return globalThis.localStorage.getItem("outsideatl_admin_token");
+}
+
 async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body && !headers.has("content-type")) headers.set("content-type", "application/json");
   if (options.admin) {
-    const token = window.localStorage.getItem("outsideatl_admin_token");
+    const token = localAdminToken();
     if (token) headers.set("x-admin-token", token);
   }
 
@@ -33,8 +38,12 @@ async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   return payload as T;
 }
 
+function listPayload<T>(payload: unknown): T[] {
+  return Array.isArray(payload) ? (payload as T[]) : [];
+}
+
 export function listPublicEvents() {
-  return api<PublicEvent[]>("/api/events");
+  return api<unknown>("/api/events").then(listPayload<PublicEvent>);
 }
 
 export function submitRsvp(data: Record<string, unknown>) {
@@ -77,7 +86,7 @@ export function checkAdmin() {
 }
 
 export function listAdminEvents() {
-  return api<PublicEvent[]>("/api/admin/events", { admin: true });
+  return api<unknown>("/api/admin/events", { admin: true }).then(listPayload<PublicEvent>);
 }
 
 export function saveAdminEvent(data: Partial<PublicEvent>) {
@@ -103,7 +112,16 @@ export type AdminSubmissions = {
 };
 
 export function listAdminSubmissions() {
-  return api<AdminSubmissions>("/api/admin/submissions", { admin: true });
+  return api<unknown>("/api/admin/submissions", { admin: true }).then((payload) => {
+    const submissions =
+      payload && typeof payload === "object" ? (payload as Partial<AdminSubmissions>) : {};
+    return {
+      rsvps: listPayload(submissions.rsvps),
+      newsletter: listPayload(submissions.newsletter),
+      applications: listPayload(submissions.applications),
+      contacts: listPayload(submissions.contacts),
+    };
+  });
 }
 
 export function updateSubmissionStatus(data: {

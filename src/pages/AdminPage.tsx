@@ -133,12 +133,22 @@ function AdminTabs() {
 function EventsManager() {
   const [events, setEvents] = useState<PublicEvent[]>([]);
   const [form, setForm] = useState(blankEvent);
+  const [eventsStatus, setEventsStatus] = useState<"loading" | "ready" | "error">("loading");
   const [saving, setSaving] = useState(false);
 
-  const refresh = () =>
-    listAdminEvents()
-      .then((data) => setEvents(Array.isArray(data) ? data : []))
-      .catch((error) => toast.error(error.message));
+  const refresh = () => {
+    setEventsStatus("loading");
+    return listAdminEvents()
+      .then((data) => {
+        setEvents(Array.isArray(data) ? data : []);
+        setEventsStatus("ready");
+      })
+      .catch((error) => {
+        setEvents([]);
+        setEventsStatus("error");
+        toast.error(error.message);
+      });
+  };
 
   useEffect(() => {
     refresh();
@@ -250,37 +260,48 @@ function EventsManager() {
 
       <div className="space-y-2">
         <h3 className="font-display text-2xl uppercase mb-4">All events ({events.length})</h3>
-        {events.map((event) => (
-          <div
-            key={event.id}
-            className="border border-border p-4 flex flex-wrap gap-4 justify-between items-start"
-          >
-            <div className="min-w-0">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-accent">
-                {new Date(event.event_date).toLocaleString()}
-              </p>
-              <p className="font-display text-xl uppercase">{event.title}</p>
-              <p className="text-xs text-muted-foreground">
-                {event.venue} / {event.status} {event.is_past && "/ past"}{" "}
-                {!event.is_published && "/ unpublished"}
-              </p>
+        {eventsStatus === "loading" ? (
+          <AdminStateBlock title="Loading events" body="Pulling the event list." />
+        ) : eventsStatus === "error" ? (
+          <AdminStateBlock
+            title="Events unavailable"
+            body="The event list did not load. Check your admin session and Supabase connection."
+          />
+        ) : events.length === 0 ? (
+          <AdminStateBlock title="No events yet" body="Create the first event with the form." />
+        ) : (
+          events.map((event) => (
+            <div
+              key={event.id}
+              className="border border-border p-4 flex flex-wrap gap-4 justify-between items-start"
+            >
+              <div className="min-w-0">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-accent">
+                  {new Date(event.event_date).toLocaleString()}
+                </p>
+                <p className="font-display text-xl uppercase">{event.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {event.venue} / {event.status} {event.is_past && "/ past"}{" "}
+                  {!event.is_published && "/ unpublished"}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => edit(event)}
+                  className="border border-border px-3 py-1 font-mono text-xs uppercase"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => remove(event)}
+                  className="border border-destructive text-destructive px-3 py-1 font-mono text-xs uppercase"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => edit(event)}
-                className="border border-border px-3 py-1 font-mono text-xs uppercase"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => remove(event)}
-                className="border border-destructive text-destructive px-3 py-1 font-mono text-xs uppercase"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
@@ -288,18 +309,39 @@ function EventsManager() {
 
 function SubmissionsView({ tab }: { tab: Exclude<AdminTab, "events"> }) {
   const [data, setData] = useState<AdminSubmissions | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [search, setSearch] = useState("");
 
-  const refresh = () =>
-    listAdminSubmissions()
-      .then(setData)
-      .catch((error) => toast.error(error.message));
+  const refresh = () => {
+    setStatus("loading");
+    return listAdminSubmissions()
+      .then((payload) => {
+        setData(payload);
+        setStatus("ready");
+      })
+      .catch((error) => {
+        setData(null);
+        setStatus("error");
+        toast.error(error.message);
+      });
+  };
 
   useEffect(() => {
     refresh();
   }, []);
 
-  if (!data) return <p className="text-muted-foreground">Loading...</p>;
+  if (status === "loading")
+    return <AdminStateBlock title="Loading submissions" body="Pulling inbox data." />;
+  if (status === "error") {
+    return (
+      <AdminStateBlock
+        title="Submissions unavailable"
+        body="The submission inbox did not load. Check your admin session and Supabase connection."
+      />
+    );
+  }
+  if (!data)
+    return <AdminStateBlock title="No submissions loaded" body="Refresh the page to try again." />;
 
   const tabData = Array.isArray(data[tab]) ? data[tab] : [];
   const rows = tabData.filter((row) =>
@@ -307,7 +349,7 @@ function SubmissionsView({ tab }: { tab: Exclude<AdminTab, "events"> }) {
   );
   const supportsStatus = tab === "rsvps" || tab === "applications";
 
-  const setStatus = async (row: { id: string }, status: Status) => {
+  const setSubmissionStatus = async (row: { id: string }, status: Status) => {
     try {
       await updateSubmissionStatus({
         table: tab as "applications" | "rsvps",
@@ -335,42 +377,58 @@ function SubmissionsView({ tab }: { tab: Exclude<AdminTab, "events"> }) {
         />
       </div>
       <div className="space-y-2">
-        {rows.map((row) => {
-          const status = (row.review_status as Status | undefined) ?? "new";
-          return (
-            <details key={row.id} className="border border-border">
-              <summary className="px-4 py-3 cursor-pointer flex flex-wrap justify-between gap-4 items-center">
-                <span className="font-mono text-sm">
-                  {String(row.full_name || row.name || row.email || row.id)}
-                </span>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {new Date(row.created_at).toLocaleDateString()}
-                </span>
-              </summary>
-              {supportsStatus && (
-                <div className="px-4 py-3 flex flex-wrap gap-2 items-center border-t border-border">
-                  {statuses.map((item) => (
-                    <button
-                      key={item}
-                      onClick={() => setStatus(row, item)}
-                      className={`px-3 py-1 font-mono text-[10px] uppercase tracking-widest border ${
-                        status === item
-                          ? "bg-accent text-accent-foreground border-accent"
-                          : "border-border hover:border-accent"
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <pre className="border-t border-border bg-secondary px-4 py-3 text-xs font-mono whitespace-pre-wrap overflow-x-auto">
-                {JSON.stringify(row, null, 2)}
-              </pre>
-            </details>
-          );
-        })}
+        {rows.length === 0 ? (
+          <AdminStateBlock
+            title={search.trim() ? "No matches" : "No submissions yet"}
+            body={search.trim() ? "Try a different search." : "New submissions will appear here."}
+          />
+        ) : (
+          rows.map((row) => {
+            const status = (row.review_status as Status | undefined) ?? "new";
+            return (
+              <details key={row.id} className="border border-border">
+                <summary className="px-4 py-3 cursor-pointer flex flex-wrap justify-between gap-4 items-center">
+                  <span className="font-mono text-sm">
+                    {String(row.full_name || row.name || row.email || row.id)}
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {new Date(row.created_at).toLocaleDateString()}
+                  </span>
+                </summary>
+                {supportsStatus && (
+                  <div className="px-4 py-3 flex flex-wrap gap-2 items-center border-t border-border">
+                    {statuses.map((item) => (
+                      <button
+                        key={item}
+                        onClick={() => setSubmissionStatus(row, item)}
+                        className={`px-3 py-1 font-mono text-[10px] uppercase tracking-widest border ${
+                          status === item
+                            ? "bg-accent text-accent-foreground border-accent"
+                            : "border-border hover:border-accent"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <pre className="border-t border-border bg-secondary px-4 py-3 text-xs font-mono whitespace-pre-wrap overflow-x-auto">
+                  {JSON.stringify(row, null, 2)}
+                </pre>
+              </details>
+            );
+          })
+        )}
       </div>
+    </div>
+  );
+}
+
+function AdminStateBlock({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="border border-dashed border-border p-8 text-center">
+      <p className="font-display text-2xl uppercase mb-3">{title}</p>
+      <p className="text-sm text-muted-foreground">{body}</p>
     </div>
   );
 }
