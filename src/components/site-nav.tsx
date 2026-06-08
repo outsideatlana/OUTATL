@@ -1,11 +1,12 @@
 import { AppLink as Link } from "@/components/app-link";
-import logoAsset from "@/assets/outsideatl-logo.jpg.asset.json";
+
+const logoUrl = "/outsideatllogo.jpg";
 
 export function SiteNav() {
   return (
     <nav className="sticky top-0 z-50 px-6 py-4 flex justify-between items-center bg-background/80 backdrop-blur-md border-b border-border">
       <Link to="/" aria-label="OutsideAtl home" className="block">
-        <img src={logoAsset.url} alt="OutsideAtl" className="h-10 w-auto mix-blend-screen invert" />
+        <img src={logoUrl} alt="OutsideAtl" className="h-10 w-auto mix-blend-screen invert" />
       </Link>
       <div className="hidden md:flex gap-8 items-center text-[10px] font-mono uppercase tracking-widest">
         <Link to="/" hash="events" className="hover:text-accent transition-colors">
@@ -50,7 +51,7 @@ export function SiteFooter() {
       className="px-6 py-16 border-t border-border flex flex-col md:flex-row justify-between items-start gap-12"
     >
       <div className="space-y-4">
-        <img src={logoAsset.url} alt="OutsideAtl" className="h-20 w-auto mix-blend-screen invert" />
+        <img src={logoUrl} alt="OutsideAtl" className="h-20 w-auto mix-blend-screen invert" />
         <div className="font-mono text-[10px] text-muted-foreground space-y-1">
           <p>© {new Date().getFullYear()} OUTSIDEATL</p>
           <p>ATLANTA, GA</p>
