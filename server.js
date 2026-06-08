@@ -130,7 +130,14 @@ app.post("/api/newsletter", async (req, res) => {
     const normalized = payload.email.toLowerCase();
     const { error } = await client
       .from("newsletter_subscribers")
-      .upsert({ email: normalized }, { onConflict: "email" });
+      .upsert(
+        {
+          email: normalized,
+          signup_source: payload.signup_source || null,
+          consent_marketing: payload.consent_marketing ?? true,
+        },
+        { onConflict: "email" },
+      );
     if (error) throw error;
 
     if (payload.signup_source?.includes("deals") || payload.signup_source?.includes("private")) {
@@ -221,10 +228,25 @@ function signAdminToken() {
   return `${body}.${sig}`;
 }
 
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   try {
     const token = req.get("x-admin-token");
     if (!token) throw new Error("Admin login required.");
+
+    // Supabase JWT — 3-part base64url, starts with eyJ
+    if (token.startsWith("eyJ")) {
+      const { data: { user }, error } = await adminClient().auth.getUser(token);
+      if (error || !user) throw new Error("Admin session is invalid.");
+      const { data: roleRow } = await adminClient()
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!roleRow || roleRow.role !== "admin") throw new Error("Not an admin.");
+      return next();
+    }
+
+    // Legacy HMAC token (backward compat)
     const [body, sig] = token.split(".");
     const expected = crypto.createHmac("sha256", adminSecret()).update(body).digest("base64url");
     if (!body || !sig || !safeEqual(sig, expected)) throw new Error("Admin session is invalid.");
@@ -238,11 +260,12 @@ function requireAdmin(req, res, next) {
   }
 }
 
-app.post("/api/admin/login", (req, res) => {
+app.post("/api/admin/login", async (req, res) => {
   try {
     const { username, password } = z
       .object({ username: z.string().min(1), password: z.string().min(1) })
       .parse(req.body);
+
     const expectedUsername = env("ADMIN_USERNAME");
     const expectedPassword = env("ADMIN_PASSWORD");
     if (!expectedUsername || !expectedPassword) throw new Error("Admin login is not configured.");
@@ -252,7 +275,44 @@ app.post("/api/admin/login", (req, res) => {
     ) {
       throw new Error("Invalid username or password.");
     }
-    res.json({ token: signAdminToken() });
+
+    // Build a Supabase-compatible email for the admin account.
+    // If ADMIN_USERNAME already looks like an email, use it as-is.
+    const adminEmail = expectedUsername.includes("@")
+      ? expectedUsername
+      : `${expectedUsername}@admin.outsideatl.app`;
+
+    const supa = adminClient();
+
+    // Try Supabase sign-in first; on failure, bootstrap the admin account.
+    const signIn = await publicClient().auth.signInWithPassword({ email: adminEmail, password });
+    let session;
+
+    if (signIn.error) {
+      // First-time setup: create Supabase auth user + grant admin role.
+      const { data: created, error: createErr } = await supa.auth.admin.createUser({
+        email: adminEmail,
+        password,
+        email_confirm: true,
+      });
+      if (createErr) throw createErr;
+
+      await supa
+        .from("user_roles")
+        .upsert({ user_id: created.user.id, role: "admin" }, { onConflict: "user_id,role" });
+
+      const retry = await publicClient().auth.signInWithPassword({ email: adminEmail, password });
+      if (retry.error) throw retry.error;
+      session = retry.data.session;
+    } else {
+      session = signIn.data.session;
+      // Keep admin role in sync (idempotent).
+      await supa
+        .from("user_roles")
+        .upsert({ user_id: signIn.data.user.id, role: "admin" }, { onConflict: "user_id,role" });
+    }
+
+    res.json({ token: session.access_token });
   } catch (error) {
     jsonError(res, error, 401);
   }
