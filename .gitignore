@@ -13,10 +13,12 @@ dist
 dist-ssr
 .output
 .vinxi
+.vite-cache/
 .tanstack/**
 .nitro
 *.local
 .playwright-mcp/
+.playwright-cli/
 
 # Wrangler / Cloudflare
 .wrangler/

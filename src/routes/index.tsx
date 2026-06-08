@@ -50,14 +50,20 @@ function formatDate(iso: string) {
 
 export default function HomePage() {
   const [events, setEvents] = useState<PublicEvent[]>([]);
+  const [eventsStatus, setEventsStatus] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
     document.title = "OutsideAtl - Atlanta Nightlife, Live Music & Events";
+    setEventsStatus("loading");
     listPublicEvents()
-      .then(setEvents)
+      .then((data) => {
+        setEvents(data);
+        setEventsStatus("ready");
+      })
       .catch((error) => {
         console.error("[Events] public event listing failed:", error);
         setEvents([]);
+        setEventsStatus("error");
       });
   }, []);
 
@@ -69,10 +75,10 @@ export default function HomePage() {
       <SiteNav />
       <main id="main">
         <Hero />
-        <Ticker events={upcoming} />
-        <UpcomingEvents events={upcoming} />
+        <Ticker events={upcoming} isLoading={eventsStatus === "loading"} />
+        <UpcomingEvents events={upcoming} status={eventsStatus} />
         <ApplicationHub />
-        <PastRecaps events={past} />
+        <PastRecaps events={past} isLoading={eventsStatus === "loading"} />
         <RsvpSection events={upcoming} />
         <AboutSection />
         <ContactSection />
@@ -126,18 +132,27 @@ function Hero() {
   );
 }
 
-function Ticker({ events }: { events: Array<{ id: string; title: string; event_date: string }> }) {
-  const items =
-    events.length > 0
-      ? events
-          .slice(0, 6)
-          .map((e) => `${formatDate(e.event_date).short} — ${e.title.toUpperCase()}`)
-      : [
-          "NEW EVENTS DROPPING SOON",
-          "FOLLOW @OUTSID3.ATL FOR UPDATES",
-          "BOOKINGS OPEN",
-          "VENDOR APPS OPEN",
-        ];
+function Ticker({
+  events,
+  isLoading,
+}: {
+  events: Array<{ id: string; title: string; event_date: string }>;
+  isLoading: boolean;
+}) {
+  const items = (() => {
+    if (isLoading) return ["LOADING EVENT DROPS", "SYNCING ATLANTA CALENDAR", "ONE SEC"];
+    if (events.length > 0) {
+      return events
+        .slice(0, 6)
+        .map((e) => `${formatDate(e.event_date).short} — ${e.title.toUpperCase()}`);
+    }
+    return [
+      "NEW EVENTS DROPPING SOON",
+      "FOLLOW @OUTSID3.ATL FOR UPDATES",
+      "BOOKINGS OPEN",
+      "VENDOR APPS OPEN",
+    ];
+  })();
   const loop = [...items, ...items, ...items];
   return (
     <div className="bg-accent text-accent-foreground py-3 overflow-hidden border-y border-accent">
@@ -153,7 +168,13 @@ function Ticker({ events }: { events: Array<{ id: string; title: string; event_d
   );
 }
 
-function UpcomingEvents({ events }: { events: Awaited<ReturnType<typeof listPublicEvents>> }) {
+function UpcomingEvents({
+  events,
+  status,
+}: {
+  events: Awaited<ReturnType<typeof listPublicEvents>>;
+  status: "loading" | "ready" | "error";
+}) {
   return (
     <section id="events" className="relative px-6 py-24 gradient-divider">
       <div className="flex flex-wrap justify-between items-end mb-12 gap-4">
@@ -175,7 +196,15 @@ function UpcomingEvents({ events }: { events: Awaited<ReturnType<typeof listPubl
         </a>
       </div>
 
-      {events.length === 0 ? (
+      {status === "loading" ? (
+        <EventStatusCard label="[ Loading shows ]" title="Pulling the next drop." />
+      ) : status === "error" ? (
+        <EventStatusCard
+          label="[ Calendar unavailable ]"
+          title="The drop list did not load."
+          body="The site is still live. Check back in a minute or join the list below for event updates."
+        />
+      ) : events.length === 0 ? (
         <div className="border border-dashed border-border p-16 text-center">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-4">
             [ No shows announced yet ]
@@ -262,6 +291,26 @@ function UpcomingEvents({ events }: { events: Awaited<ReturnType<typeof listPubl
         </div>
       )}
     </section>
+  );
+}
+
+function EventStatusCard({
+  label,
+  title,
+  body = "Join the list below to be the first to know when tickets go live.",
+}: {
+  label: string;
+  title: string;
+  body?: string;
+}) {
+  return (
+    <div className="border border-dashed border-border p-16 text-center">
+      <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-4">
+        {label}
+      </p>
+      <p className="font-display text-3xl uppercase mb-6">{title}</p>
+      <p className="text-muted-foreground max-w-md mx-auto">{body}</p>
+    </div>
   );
 }
 
@@ -354,7 +403,13 @@ function ApplicationHub() {
   );
 }
 
-function PastRecaps({ events }: { events: Awaited<ReturnType<typeof listPublicEvents>> }) {
+function PastRecaps({
+  events,
+  isLoading,
+}: {
+  events: Awaited<ReturnType<typeof listPublicEvents>>;
+  isLoading: boolean;
+}) {
   return (
     <section id="recaps" className="relative px-6 py-24 gradient-divider">
       <p className="font-mono text-xs uppercase tracking-widest text-accent mb-3">
@@ -363,7 +418,16 @@ function PastRecaps({ events }: { events: Awaited<ReturnType<typeof listPublicEv
       <h2 className="font-display text-5xl md:text-7xl uppercase tracking-tighter mb-12">
         Past Recaps
       </h2>
-      {events.length === 0 ? (
+      {isLoading ? (
+        <div className="border border-dashed border-border p-16 text-center">
+          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-4">
+            [ Loading archive ]
+          </p>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Pulling the latest OutsideAtl recaps.
+          </p>
+        </div>
+      ) : events.length === 0 ? (
         <div className="border border-dashed border-border p-16 text-center">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-4">
             [ Archive being built ]
