@@ -158,21 +158,90 @@ export type Database = {
         };
         Relationships: [];
       };
-      newsletter_subscribers: {
+      deal_private_event_signups: {
         Row: {
+          consent_marketing: boolean;
           created_at: string;
           email: string;
           id: string;
+          signup_source: string;
+        };
+        Insert: {
+          consent_marketing?: boolean;
+          created_at?: string;
+          email: string;
+          id?: string;
+          signup_source?: string;
+        };
+        Update: {
+          consent_marketing?: boolean;
+          created_at?: string;
+          email?: string;
+          id?: string;
+          signup_source?: string;
+        };
+        Relationships: [];
+      };
+      member_profiles: {
+        Row: {
+          created_at: string;
+          email: string;
+          full_name: string | null;
+          joined_mail_list: boolean;
+          phone: string | null;
+          updated_at: string;
+          user_id: string;
+          wants_discounts: boolean;
+          wants_first_notices: boolean;
+          wants_private_events: boolean;
         };
         Insert: {
           created_at?: string;
           email: string;
-          id?: string;
+          full_name?: string | null;
+          joined_mail_list?: boolean;
+          phone?: string | null;
+          updated_at?: string;
+          user_id: string;
+          wants_discounts?: boolean;
+          wants_first_notices?: boolean;
+          wants_private_events?: boolean;
         };
         Update: {
           created_at?: string;
           email?: string;
+          full_name?: string | null;
+          joined_mail_list?: boolean;
+          phone?: string | null;
+          updated_at?: string;
+          user_id?: string;
+          wants_discounts?: boolean;
+          wants_first_notices?: boolean;
+          wants_private_events?: boolean;
+        };
+        Relationships: [];
+      };
+      newsletter_subscribers: {
+        Row: {
+          consent_marketing: boolean;
+          created_at: string;
+          email: string;
+          id: string;
+          signup_source: string | null;
+        };
+        Insert: {
+          consent_marketing?: boolean;
+          created_at?: string;
+          email: string;
           id?: string;
+          signup_source?: string | null;
+        };
+        Update: {
+          consent_marketing?: boolean;
+          created_at?: string;
+          email?: string;
+          id?: string;
+          signup_source?: string | null;
         };
         Relationships: [];
       };
