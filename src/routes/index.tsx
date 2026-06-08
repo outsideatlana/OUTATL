@@ -57,7 +57,7 @@ export default function HomePage() {
     setEventsStatus("loading");
     listPublicEvents()
       .then((data) => {
-        setEvents(data);
+        setEvents(Array.isArray(data) ? data : []);
         setEventsStatus("ready");
       })
       .catch((error) => {

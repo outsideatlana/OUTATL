@@ -25,10 +25,11 @@ async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   }
 
   const response = await fetch(path, { ...options, headers });
-  const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || "Something went wrong.");
+    const errPayload = await response.json().catch(() => ({}));
+    throw new Error((errPayload as { error?: string }).error || "Something went wrong.");
   }
+  const payload = await response.json();
   return payload as T;
 }
 

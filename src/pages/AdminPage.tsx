@@ -137,7 +137,7 @@ function EventsManager() {
 
   const refresh = () =>
     listAdminEvents()
-      .then(setEvents)
+      .then((data) => setEvents(Array.isArray(data) ? data : []))
       .catch((error) => toast.error(error.message));
 
   useEffect(() => {
@@ -301,7 +301,8 @@ function SubmissionsView({ tab }: { tab: Exclude<AdminTab, "events"> }) {
 
   if (!data) return <p className="text-muted-foreground">Loading...</p>;
 
-  const rows = data[tab].filter((row) =>
+  const tabData = Array.isArray(data[tab]) ? data[tab] : [];
+  const rows = tabData.filter((row) =>
     search.trim() ? JSON.stringify(row).toLowerCase().includes(search.toLowerCase()) : true,
   );
   const supportsStatus = tab === "rsvps" || tab === "applications";
@@ -324,7 +325,7 @@ function SubmissionsView({ tab }: { tab: Exclude<AdminTab, "events"> }) {
     <div className="max-w-6xl space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <p className="font-mono text-xs uppercase tracking-widest text-accent">
-          [ {rows.length} / {data[tab].length} ]
+          [ {rows.length} / {tabData.length} ]
         </p>
         <input
           value={search}
